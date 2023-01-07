@@ -2,7 +2,12 @@ import pandas as pd
 import numpy as np
 import seaborn as sb
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 part = 2
 
@@ -76,24 +81,157 @@ if part == 1:
     fig.tight_layout()
     plt.show()
 
+def model_evaluation(y, y_predicted, N, d):
+    mse = mean_squared_error(y_test, y_predicted) # np.mean((y_test-y_predicted)**2)
+    mae = mean_absolute_error(y_test, y_predicted) # np.mean(np.abs(y_test-y_predicted))
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, y_predicted)
+    r2_adj = 1-(1-r2)*(N-1)/(N-d-1)
+
+    # printing values
+    print('Mean squared error: ', mse)
+    print('Mean absolute error: ', mae)
+    print('Root mean squared error: ', rmse)
+    print('R2 score: ', r2)
+    print('R2 adjusted score: ', r2_adj)
+    
+    # Uporedni prikaz nekoliko pravih i predvidjenih vrednosti
+    res=pd.concat([pd.DataFrame(y.values), pd.DataFrame(y_predicted)], axis=1)
+    res.columns = ['y', 'y_pred']
+    print(res.head(20))
 if part == 2:
-    # Assume that the independent variable is stored in the "x" column and the dependent variable is stored in the "y" column
-    X = csv_data["year", "month", "day", "hour", "season", "DEWP", "HUMI", "PRES", "TEMP", "cbwd", "Iws", "precipitation", "Iprec"]
-    y = csv_data["PM_US Post"]
 
-    # Create the linear regression model
+    opt = 5
+    csv_data_regression = csv_data
+    df_dummy = pd.get_dummies(csv_data_regression['cbwd'])
+    csv_data_regression = pd.concat([csv_data_regression, df_dummy], axis=1)
+    csv_data_regression.drop(['cbwd'], axis=1, inplace=True)
+
+    X = csv_data_regression.drop(columns=['PM_US Post'], axis=1).copy()
+    y = csv_data_regression['PM_US Post'].copy()
+
+    # Split the data into a training set, a validation set, and a test set, if test_size=0.3 then train_size is 0.7 => splitting 0.3 in half results 2 datasets of 15% data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    X_test, X_val, y_test, y_val = train_test_split(X_test, y_test, test_size=0.5, random_state=42)
+
+    # Calculate the percentage size of each set
+    train_size = len(X_train) / len(csv_data_regression) * 100
+    val_size = len(X_val) / len(csv_data_regression) * 100
+    test_size = len(X_test) / len(csv_data_regression) * 100
+
+    # Print the percentage size of each set
+    print(f'Training set size: {train_size:.2f}%')
+    print(f'Validation set size: {val_size:.2f}%')
+    print(f'Test set size: {test_size:.2f}%')
+
     model = LinearRegression()
+    model.fit(X_train, y_train)
 
-    # Fit the model to the data
-    model.fit(X, y)
-    # Plot the data
-    sb.scatterplot(x="x", y="PM_US Post", data=csv_data)
+    y_pred = model.predict(X_val)
 
-    # Get the predicted values for the model
-    y_pred = model.predict(x)
+    if opt == 1:
+        # Evaluacija
+        model_evaluation(y_test, y_pred, X_train.shape[0], X_train.shape[1])
 
-    # Plot the model
-    sb.lineplot(x="x", y=y_pred, color="red")
+        # Ilustracija koeficijenata
+        plt.figure(figsize=(10,5))
+        plt.bar(range(len(model.coef_)),model.coef_)
+        plt.show()
+        print("koeficijenti: ", model.coef_)
 
-    # Show the plot
-    plt.show()
+    if opt == 2:
+        X_sm = sm.add_constant(X_train)
+
+        model = sm.OLS(y_train, X_sm.astype('float')).fit()
+        model.summary()
+        print(model.summary())
+
+    if opt == 3:
+        numeric_feats = [item for item in X.columns if 'cbwd' not in item]
+        print(numeric_feats)
+        dummy_feats = [item for item in X.columns if 'cbwd' in item]
+        print(dummy_feats)
+
+        scaler = StandardScaler()
+        scaler.fit(X_train[numeric_feats])
+
+        x_train_std = pd.DataFrame(scaler.transform(X_train[numeric_feats]), columns = numeric_feats)
+        x_test_std = pd.DataFrame(scaler.transform(X_test[numeric_feats]), columns = numeric_feats)
+
+        x_train_std = pd.concat([x_train_std, X_train[dummy_feats].reset_index(drop=True)], axis=1)
+        x_test_std = pd.concat([x_test_std, X_test[dummy_feats].reset_index(drop=True)], axis=1)
+
+        x_train_std.head()
+        regression_model_std = LinearRegression()
+
+        # Obuka modela
+        regression_model_std.fit(x_train_std, y_train)
+
+        # Testiranje
+        y_predicted = regression_model_std.predict(x_test_std)
+
+        # Evaluacija
+        model_evaluation(y_test, y_predicted, x_train_std.shape[0], x_train_std.shape[1])
+
+        # Ilustracija koeficijenata
+        plt.figure(figsize=(10,5))
+        plt.bar(range(len(regression_model_std.coef_)),regression_model_std.coef_)
+        plt.show()
+        print("koeficijenti: ", regression_model_std.coef_)
+    
+        corr_mat = X_train[numeric_feats].corr()
+
+        plt.figure(figsize=(12, 9))
+        sb.heatmap(corr_mat, annot=True)
+        plt.show()
+
+    if opt == 4:
+        poly = PolynomialFeatures(interaction_only=True, include_bias=False)
+        x_inter_train = poly.fit_transform(X_train)
+        x_inter_test = poly.transform(X_test)
+
+        # print(poly.get_feature_names())
+
+        # Linearna regresija sa hipotezom y=b0+b1x1+b2x2+...+bnxn+c1x1x2+c2x1x3+...
+
+        # Inicijalizacija
+        regression_model_inter = LinearRegression()
+
+        # Obuka modela
+        regression_model_inter.fit(x_inter_train, y_train)
+
+        # Testiranje
+        y_predicted = regression_model_inter.predict(x_inter_test)
+
+        # Evaluacija
+        model_evaluation(y_test, y_predicted, x_inter_train.shape[0], x_inter_train.shape[1])
+
+        # Ilustracija koeficijenata
+        plt.figure(figsize=(10,5))
+        plt.bar(range(len(regression_model_inter.coef_)),regression_model_inter.coef_)
+        plt.show()
+        print("koeficijenti: ", regression_model_inter.coef_)
+
+    if opt == 5:
+        test_score = model.score(X_test, y_test)
+        val_score = model.score(X_val, y_val)
+
+        poly = PolynomialFeatures(degree=2)
+        X_train_poly = poly.fit_transform(X_train)
+        X_test_poly = poly.transform(X_test)
+        X_val_poly = poly.transform(X_val)
+
+        model = Lasso(alpha=0.1)
+        model.fit(X_train_poly, y_train)
+
+        y_pred = model.predict(X_val_poly)
+
+        model_evaluation(y_test, y_pred, X_train_poly.shape[0], X_train_poly.shape[1])
+
+        test_score = model.score(X_test_poly, y_test)
+        val_score = model.score(X_val_poly, y_val)
+
+        plt.scatter(y_val, model.predict(X_val_poly))
+        plt.xlabel('Actual values')
+        plt.ylabel('Predicted values')
+        plt.show()
