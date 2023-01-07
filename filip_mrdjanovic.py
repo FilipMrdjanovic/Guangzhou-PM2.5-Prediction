@@ -99,9 +99,11 @@ def model_evaluation(y, y_predicted, N, d):
     res=pd.concat([pd.DataFrame(y.values), pd.DataFrame(y_predicted)], axis=1)
     res.columns = ['y', 'y_pred']
     print(res.head(20))
+
+# LINEARNA REGRESIJA
 if part == 2:
 
-    opt = 5
+    opt = 0
     csv_data_regression = csv_data
     df_dummy = pd.get_dummies(csv_data_regression['cbwd'])
     csv_data_regression = pd.concat([csv_data_regression, df_dummy], axis=1)
@@ -184,35 +186,8 @@ if part == 2:
         plt.figure(figsize=(12, 9))
         sb.heatmap(corr_mat, annot=True)
         plt.show()
-
+    
     if opt == 4:
-        poly = PolynomialFeatures(interaction_only=True, include_bias=False)
-        x_inter_train = poly.fit_transform(X_train)
-        x_inter_test = poly.transform(X_test)
-
-        # print(poly.get_feature_names())
-
-        # Linearna regresija sa hipotezom y=b0+b1x1+b2x2+...+bnxn+c1x1x2+c2x1x3+...
-
-        # Inicijalizacija
-        regression_model_inter = LinearRegression()
-
-        # Obuka modela
-        regression_model_inter.fit(x_inter_train, y_train)
-
-        # Testiranje
-        y_predicted = regression_model_inter.predict(x_inter_test)
-
-        # Evaluacija
-        model_evaluation(y_test, y_predicted, x_inter_train.shape[0], x_inter_train.shape[1])
-
-        # Ilustracija koeficijenata
-        plt.figure(figsize=(10,5))
-        plt.bar(range(len(regression_model_inter.coef_)),regression_model_inter.coef_)
-        plt.show()
-        print("koeficijenti: ", regression_model_inter.coef_)
-
-    if opt == 5:
         test_score = model.score(X_test, y_test)
         val_score = model.score(X_val, y_val)
 
@@ -235,3 +210,90 @@ if part == 2:
         plt.xlabel('Actual values')
         plt.ylabel('Predicted values')
         plt.show()
+
+    # if opt == 4:
+    poly = PolynomialFeatures(interaction_only=True, include_bias=False)
+    x_inter_train = poly.fit_transform(X_train)
+    x_inter_test = poly.transform(X_test)
+
+    # print(poly.get_feature_names())
+
+    # Linearna regresija sa hipotezom y=b0+b1x1+b2x2+...+bnxn+c1x1x2+c2x1x3+...
+
+    # Inicijalizacija
+    regression_model_inter = LinearRegression()
+
+    # Obuka modela
+    regression_model_inter.fit(x_inter_train, y_train)
+
+    # Testiranje
+    y_predicted = regression_model_inter.predict(x_inter_test)
+
+    # Evaluacija
+    model_evaluation(y_test, y_predicted, x_inter_train.shape[0], x_inter_train.shape[1])
+
+    # Ilustracija koeficijenata
+    # plt.figure(figsize=(10,5))
+    # plt.bar(range(len(regression_model_inter.coef_)),regression_model_inter.coef_)
+    # plt.show()
+    # print("koeficijenti: ", regression_model_inter.coef_)
+
+    # RIDGE
+    # if opt == 5:
+    poly = PolynomialFeatures(interaction_only=True, include_bias=False)
+    x_inter_train = poly.fit_transform(X_train)
+    x_inter_test = poly.transform(X_test)
+
+    # Inicijalizacija
+    ridge_model = Ridge(alpha=5)
+
+    # Obuka modela
+    ridge_model.fit(x_inter_train, y_train)
+
+    # Testiranje
+    y_predicted = ridge_model.predict(x_inter_test)
+
+    # Evaluacija
+    model_evaluation(y_test, y_predicted, x_inter_train.shape[0], x_inter_train.shape[1])
+
+
+    # Ilustracija koeficijenata
+    # plt.figure(figsize=(10,5))
+    # plt.bar(range(len(ridge_model.coef_)),ridge_model.coef_)
+    # plt.show()
+    # print("koeficijenti: ", ridge_model.coef_)
+
+    # LASSO
+    # if opt == 6:
+
+    # Model initialization
+    lasso_model = Lasso(alpha=0.01)
+
+    # Fit the data(train the model)
+    lasso_model.fit(x_inter_train, y_train)
+
+    # Predict
+    y_predicted = lasso_model.predict(x_inter_test)
+
+    # Evaluation
+    model_evaluation(y_test, y_predicted, x_inter_train.shape[0], x_inter_train.shape[1])
+
+    #ilustracija koeficijenata
+    # plt.figure(figsize=(10,5))
+    # plt.bar(range(len(lasso_model.coef_)),lasso_model.coef_)
+    # plt.show()
+    # print("koeficijenti: ", lasso_model.coef_)
+
+        
+    plt.figure(figsize=(10,5))
+    #plt.plot(regression_model_degree.coef_,alpha=0.7,linestyle='none',marker='*',markersize=5,color='red',label=r'linear',zorder=7) # zorder for ordering the markers
+    plt.plot(ridge_model.coef_,alpha=0.5,linestyle='none',marker='d',markersize=6,color='blue',label=r'Ridge') # alpha here is for transparency
+    plt.plot(lasso_model.coef_,alpha=0.4,linestyle='none',marker='o',markersize=7,color='green',label='Lasso')
+    plt.xlabel('Coefficient Index',fontsize=16)
+    plt.ylabel('Coefficient Magnitude',fontsize=16)
+    plt.legend(fontsize=13,loc='best')
+    plt.show()
+
+# KNN KLASIFIKATOR
+if part == 3:
+    print()
