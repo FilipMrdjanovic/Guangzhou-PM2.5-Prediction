@@ -4,12 +4,15 @@ import seaborn as sb
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix
 
-part = 2
+
+part = 3
 
 pd.set_option('display.float_format', lambda x: '%.2f' % x) # ======== Formatting numbers to 2 decimals
 
@@ -27,6 +30,7 @@ to_drop = csv_data[csv_data['cbwd'].str.contains('Unknown')].index
 
 # ======== Drop the rows with the index labels obtained above
 csv_data = csv_data.drop(to_drop)
+csv_data = csv_data.drop(['No'], axis=1)
 
 # ======== Convert the column to a string data type
 csv_data['cbwd'] = csv_data['cbwd'].astype(str)
@@ -105,8 +109,8 @@ if part == 2:
 
     opt = 0
     csv_data_regression = csv_data
-    df_dummy = pd.get_dummies(csv_data_regression['cbwd'])
-    csv_data_regression = pd.concat([csv_data_regression, df_dummy], axis=1)
+    csv_data_dummy = pd.get_dummies(csv_data_regression['cbwd'])
+    csv_data_regression = pd.concat([csv_data_regression, csv_data_dummy], axis=1)
     csv_data_regression.drop(['cbwd'], axis=1, inplace=True)
 
     X = csv_data_regression.drop(columns=['PM_US Post'], axis=1).copy()
@@ -296,4 +300,55 @@ if part == 2:
 
 # KNN KLASIFIKATOR
 if part == 3:
-    print()
+
+    csv_data_regression = csv_data
+    
+    csv_data_dummy = pd.get_dummies(csv_data_regression['cbwd'])
+    csv_data_regression = pd.concat([csv_data_regression, csv_data_dummy], axis=1)
+    csv_data_regression.drop(['cbwd'], axis=1, inplace=True)
+
+    csv_data_regression['bezbedno'] = 0
+    csv_data_regression['nebezbedno'] = 0
+    csv_data_regression['opasno'] = 0
+
+    csv_data_regression['bezbedno'] = csv_data_regression['PM_US Post'].apply(lambda x: 1 if x < 55.4 else 0)
+    csv_data_regression['nebezbedno'] = csv_data_regression['PM_US Post'].apply(lambda x: 1 if x >= 55.5 and x < 150.4 else 0)
+    csv_data_regression['opasno'] = csv_data['PM_US Post'].apply(lambda x: 1 if x >= 150.5 else 0)
+
+    X = csv_data_regression.iloc[:, 1:]
+    y = csv_data_regression.iloc[:, 0]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=42, stratify=y)
+
+    X = csv_data_regression.drop(columns=['PM_US Post'])
+    y = csv_data_regression['PM_US Post']
+
+
+    # kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    # parameters = {'metric':['minkowski', 'chebyshev', 'euclidean', 'manhattan', "hamming"], 'n_neighbors':range(1, 10)}
+    # clf = GridSearchCV(estimator=knn, param_grid=parameters, scoring='accuracy', cv=kfold, refit=True, verbose=3)
+    # clf.fit(X_train, y_train)
+    # print(f'Best score: {clf.best_score_:.2f}')
+    # print(f'Best parameters: {clf.best_params_}')
+    # parameters = {'metric':'manhattan', 'n_neighbors':1} # Output of knn
+
+    knn = KNeighborsClassifier(n_neighbors=1, metric='manhattan')
+    knn.fit(X_train, y_train)
+
+    y_pred = knn.predict(X_test) 
+    conf_mat = confusion_matrix(y_test, y_pred) # TN, FP
+    print(conf_mat)  
+
+    TP = conf_mat[1, 1]
+    TN = conf_mat[0, 0]
+    FP = conf_mat[0, 1]
+    FN = conf_mat[1, 0]
+    precision = TP/(TP+FP)
+    accuracy = (TP+TN)/(TP+TN+FP+FN)
+    sensitivity = TP/(TP+FN)
+    specificity = TN/(TN+FP)
+    F_score = 2*precision*sensitivity/(precision+sensitivity)
+    print('precision: ', precision)
+    print('accuracy: ', accuracy)
+    print('sensitivity/recall: ', sensitivity)
+    print('specificity: ', specificity)
+    print('F score: ', F_score)
