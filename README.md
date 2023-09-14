@@ -59,15 +59,8 @@ python setup.py develop
 
 See the full instructions for [installing from source](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html#installing-from-source).
 
-## License
-[BSD 3](LICENSE)
-
 ## Documentation
 The official documentation is hosted on PyData.org: https://pandas.pydata.org/pandas-docs/stable
-
-## Background
-Work on ``pandas`` started at [AQR](https://www.aqr.com/) (a quantitative hedge fund) in 2008 and
-has been under active development since then.
 
 ## Getting Help
 
